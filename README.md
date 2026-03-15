@@ -2,7 +2,7 @@
 
 **Student Intelligence System** — A beautifully designed, all-in-one academic calculator for students.
 
-🌐 **Live Site:** `https://dhruv2810.github.io/Graduator`
+🌐 **Live Site:** https://dhruv2810.github.io/Graduator
 
 ---
 
