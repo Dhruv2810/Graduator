@@ -17,4 +17,4 @@
 
 ---
 
-Made with ❤️ by **Dhruv Parekh**
+Made with ❤️ by Dhruv Parekh
