@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Graduator</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #030508;
+  --s1:       #060a12;
+  --s2:       #0b1220;
+  --glass:    rgba(8,16,32,0.7);
+  --glass2:   rgba(12,22,44,0.5);
+  --c:        #00d4ff;
+  --c2:       #0099cc;
+  --violet:   #7c3aed;
+  --pink:     #ec4899;
+  --green:    #10ffb0;
+  --amber:    #f59e0b;
+  --red:      #ff4757;
+  --text:     #e2eaf8;
+  --muted:    #4a5878;
+  --border:   rgba(0,212,255,0.12);
+  --border2:  rgba(0,212,255,0.06);
+  --glow:     rgba(0,212,255,0.15);
+  --glow2:    rgba(0,212,255,0.08);
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ── Custom Cursor ── */
+#cursor {
+  width: 10px; height: 10px;
+  background: var(--c);
+  border-radius: 50%;
+  position: fixed; top: 0; left: 0;
+  pointer-events: none; z-index: 9999;
+  transform: translate(-50%,-50%);
+  transition: width .15s, height .15s, background .2s;
+  box-shadow: 0 0 12px var(--c), 0 0 30px rgba(0,212,255,0.4);
+  mix-blend-mode: screen;
+}
+#cursor-ring {
+  width: 32px; height: 32px;
+  border: 1px solid rgba(0,212,255,0.5);
+  border-radius: 50%;
+  position: fixed; top: 0; left: 0;
+  pointer-events: none; z-index: 9998;
+  transform: translate(-50%,-50%);
+  transition: width .2s, height .2s;
+  will-change: left, top;
+}
+body:has(button:hover) #cursor, body:has(input:hover) #cursor,
+body:has(.tilt-card:hover) #cursor { width:16px; height:16px; }
+
+/* ── Background Scene ── */
+#bg-canvas { position:fixed; inset:0; z-index:0; }
+.bg-mesh {
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(0,100,200,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 80%, rgba(124,58,237,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,212,255,0.03) 0%, transparent 70%);
+}
+.scanlines {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+}
+
+/* ── Layout ── */
+.wrap { position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px 100px; }
+
+/* ── Header ── */
+header {
+  padding: 70px 0 50px;
+  text-align: center;
+  perspective: 1000px;
+}
+
+.logo-ring {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 28px;
+}
+.logo-ring svg {
+  width: 88px; height: 88px;
+  filter: drop-shadow(0 0 20px rgba(0,212,255,0.6));
+  animation: spinRing 20s linear infinite;
+}
+@keyframes spinRing { to { transform: rotate(360deg); } }
+.logo-inner {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem;
+  animation: spinRingRev 20s linear infinite;
+}
+@keyframes spinRingRev { to { transform: rotate(-360deg); } }
+
+h1 {
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-weight: 900;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 12px;
+  position: relative;
+  display: inline-block;
+}
+.h1-main {
+  background: linear-gradient(135deg, #ffffff 0%, #a0d8ef 30%, var(--c) 60%, #7c3aed 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 30px rgba(0,212,255,0.3));
+}
+.h1-glow {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(0,212,255,0.15) 50%, transparent 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: blur(8px);
+  z-index: -1;
+}
+
+.subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .78rem;
+  color: var(--muted);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 40px;
+}
+.subtitle span { color: var(--c); }
+
+/* ── Stat Pills Row ── */
+.stat-pills {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  margin-bottom: 48px;
+}
+.pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 100px; padding: 8px 20px;
+  backdrop-filter: blur(20px);
+  font-size: .78rem; font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  transition: all .3s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.pill:hover { border-color: var(--c); color: var(--c); box-shadow: 0 4px 20px var(--glow); }
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+/* ── Tabs ── */
+.nav {
+  display: flex; gap: 2px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border2);
+  border-radius: 16px; padding: 4px;
+  margin-bottom: 28px;
+  backdrop-filter: blur(20px);
+  overflow-x: auto;
+}
+.nav-btn {
+  flex: 1; min-width: max-content;
+  padding: 10px 22px; border-radius: 12px;
+  border: none; background: transparent;
+  color: var(--muted); font-family: 'Outfit', sans-serif;
+  font-size: .85rem; font-weight: 600;
+  cursor: none; transition: all .25s;
+  white-space: nowrap; letter-spacing: .3px;
+}
+.nav-btn.on {
+  background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,212,255,0.05));
+  color: var(--c);
+  border: 1px solid rgba(0,212,255,0.25);
+  box-shadow: 0 0 20px rgba(0,212,255,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.nav-btn:hover:not(.on) { background: rgba(0,212,255,0.06); color: #8bbfd4; }
+
+/* ── Panel ── */
+.panel { display: none; }
+.panel.on { display: block; animation: panelIn .4s cubic-bezier(.4,0,.2,1); }
+@keyframes panelIn { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── 3D Card ── */
+.tilt-card {
+  background: var(--glass);
+  border: 1px solid var(--border2);
+  border-radius: 24px;
+  padding: 32px;
+  backdrop-filter: blur(30px);
+  margin-bottom: 20px;
+  position: relative; overflow: hidden;
+  transform-style: preserve-3d;
+  transition: box-shadow .3s, border-color .3s;
+  box-shadow:
+    0 4px 24px rgba(0,0,0,0.5),
+    0 1px 0 rgba(255,255,255,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  will-change: transform;
+}
+.tilt-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent);
+  opacity: .6;
+}
+.tilt-card::after {
+  content: '';
+  position: absolute; inset: 0; border-radius: inherit;
+  background: radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(0,212,255,0.06), transparent 60%);
+  pointer-events: none;
+  transition: opacity .3s;
+  opacity: 0;
+}
+.tilt-card:hover::after { opacity: 1; }
+.tilt-card:hover {
+  border-color: rgba(0,212,255,0.18);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,212,255,0.07), 0 1px 0 rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* ── Section Title ── */
+.sec-title {
+  font-size: .65rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--c);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 24px;
+}
+.sec-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+
+/* ── Slider Inputs ── */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+.field { display: flex; flex-direction: column; gap: 10px; }
+.field-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: .7rem; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+}
+.field-val {
+  font-size: .85rem; font-weight: 700; color: var(--c);
+  background: rgba(0,212,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 52px; text-align: center;
+}
+
+/* Custom range slider */
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px;
+  background: rgba(0,212,255,0.12);
+  border-radius: 100px; outline: none;
+  cursor: none;
+  position: relative;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 12px var(--c), 0 0 24px rgba(0,212,255,0.4);
+  cursor: none;
+  transition: transform .15s;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.3); }
+input[type=range]::-webkit-slider-runnable-track { background: transparent; }
+
+/* Number input (fallback) */
+input[type=number], input[type=date], select {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border2);
+  border-radius: 12px; padding: 12px 16px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: .85rem;
+  outline: none; transition: all .25s;
+  appearance: none; width: 100%;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+}
+input[type=number]:focus, input[type=date]:focus, select:focus {
+  border-color: rgba(0,212,255,0.4);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4), 0 0 0 3px rgba(0,212,255,0.08);
+  background: rgba(0,212,255,0.04);
+}
+input::placeholder { color: rgba(74,88,120,0.8); }
+select option { background: #0b1220; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 28px; border-radius: 14px; border: none;
+  font-family: 'Outfit', sans-serif; font-size: .88rem; font-weight: 700;
+  cursor: none; transition: all .25s; letter-spacing: .5px;
+  position: relative; overflow: hidden;
+}
+.btn::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0; transition: opacity .2s;
+}
+.btn:hover::before { opacity: 1; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--c), var(--c2));
+  color: #000;
+  box-shadow: 0 4px 24px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,212,255,0.45), inset 0 1px 0 rgba(255,255,255,0.3); }
+.btn-ghost {
+  background: rgba(0,212,255,0.05); border: 1px solid var(--border); color: var(--c);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.btn-ghost:hover { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+
+/* ── Ring Gauge ── */
+.ring-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.ring-svg { overflow: visible; }
+.ring-bg { fill: none; stroke: rgba(0,212,255,0.08); stroke-width: 8; }
+.ring-fill {
+  fill: none; stroke-width: 8; stroke-linecap: round;
+  transform: rotate(-90deg); transform-origin: center;
+  transition: stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1), stroke .5s;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+.ring-text-val {
+  font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 28px;
+  fill: var(--text); text-anchor: middle; dominant-baseline: middle;
+}
+.ring-text-sub {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  fill: var(--muted); text-anchor: middle; dominant-baseline: middle;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.ring-label {
+  font-family: 'JetBrains Mono', monospace; font-size: .65rem;
+  color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
+  text-align: center;
+}
+
+/* ── Result Grid ── */
+.res-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 22px; }
+.res-card {
+  border-radius: 18px; padding: 22px;
+  position: relative; overflow: hidden;
+  border: 1px solid transparent;
+  transform-style: preserve-3d;
+  transition: transform .25s, box-shadow .25s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  cursor: default;
+}
+.res-card:hover { transform: translateY(-6px) rotateX(4deg) rotateY(-2deg); }
+.res-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.04), transparent); pointer-events: none; }
+.rc-c  { background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,212,255,0.03)); border-color: rgba(0,212,255,0.25); }
+.rc-g  { background: linear-gradient(135deg, rgba(16,255,176,0.12), rgba(16,255,176,0.03)); border-color: rgba(16,255,176,0.25); }
+.rc-r  { background: linear-gradient(135deg, rgba(255,71,87,0.12), rgba(255,71,87,0.03)); border-color: rgba(255,71,87,0.25); }
+.rc-v  { background: linear-gradient(135deg, rgba(124,58,237,0.14), rgba(124,58,237,0.03)); border-color: rgba(124,58,237,0.25); }
+.rc-a  { background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.03)); border-color: rgba(245,158,11,0.25); }
+.rc-p  { background: linear-gradient(135deg, rgba(236,72,153,0.12), rgba(236,72,153,0.03)); border-color: rgba(236,72,153,0.25); }
+.res-label { font-family: 'JetBrains Mono', monospace; font-size: .58rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.res-val { font-size: 2.1rem; font-weight: 900; line-height: 1; margin-bottom: 5px; }
+.res-sub { font-size: .72rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.rc-c .res-val { color: var(--c); text-shadow: 0 0 20px rgba(0,212,255,0.5); }
+.rc-g .res-val { color: var(--green); text-shadow: 0 0 20px rgba(16,255,176,0.5); }
+.rc-r .res-val { color: var(--red); text-shadow: 0 0 20px rgba(255,71,87,0.5); }
+.rc-v .res-val { color: var(--violet); text-shadow: 0 0 20px rgba(124,58,237,0.5); }
+.rc-a .res-val { color: var(--amber); text-shadow: 0 0 20px rgba(245,158,11,0.5); }
+.rc-p .res-val { color: var(--pink); text-shadow: 0 0 20px rgba(236,72,153,0.5); }
+
+/* ── Horizon Bar ── */
+.horizon-wrap { margin-top: 24px; }
+.horizon-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--muted); margin-bottom: 10px; }
+.horizon-track {
+  height: 12px; background: rgba(0,0,0,0.5); border-radius: 100px;
+  border: 1px solid var(--border2); overflow: hidden;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+  position: relative;
+}
+.horizon-fill {
+  height: 100%; border-radius: 100px;
+  transition: width 1.2s cubic-bezier(.4,0,.2,1);
+  position: relative;
+  box-shadow: 0 0 16px currentColor;
+}
+.horizon-fill::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  animation: horizShimmer 2.5s infinite;
+}
+@keyframes horizShimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
+.horizon-min-marker {
+  position: absolute; top: 0; bottom: 0; width: 2px; background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+  transition: left .5s;
+}
+.horizon-min-label {
+  position: absolute; bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: .6rem; color: var(--amber);
+  white-space: nowrap;
+  transition: left .5s;
+}
+
+/* ── Verdict ── */
+.verdict {
+  border-radius: 16px; padding: 18px 24px; margin-top: 18px;
+  display: flex; align-items: center; gap: 14px;
+  font-weight: 600; font-size: .92rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  position: relative; overflow: hidden;
+}
+.verdict::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.04), transparent); }
+.verdict.safe { background: rgba(16,255,176,0.08); border: 1px solid rgba(16,255,176,0.25); color: var(--green); }
+.verdict.warn  { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); color: var(--amber); }
+.verdict.dead  { background: rgba(255,71,87,0.08); border: 1px solid rgba(255,71,87,0.25); color: var(--red); }
+.vi { font-size: 1.5rem; }
+
+/* ── Subject rows ── */
+.sub-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
+.sub-row input { padding: 9px 12px; font-size: .8rem; }
+.sub-hdr { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 8px; padding: 0 2px; }
+.sub-hdr span { font-family: 'JetBrains Mono', monospace; font-size: .58rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.del-btn { background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.2); color: var(--red); border-radius: 10px; padding: 9px 13px; cursor: none; font-size: .85rem; transition: all .25s; }
+.del-btn:hover { background: rgba(255,71,87,0.22); transform: scale(1.05); }
+.res-row {
+  background: rgba(0,0,0,0.25); border: 1px solid var(--border2); border-radius: 12px;
+  padding: 12px 16px; margin-bottom: 8px;
+  display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 10px; align-items: center;
+  font-family: 'JetBrains Mono', monospace; font-size: .78rem;
+  transition: all .25s; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+.res-row:hover { background: rgba(0,212,255,0.04); border-color: var(--border); transform: translateX(4px); }
+.chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 100px; font-size: .65rem; font-weight: 700; }
+.chip-g { background: rgba(16,255,176,0.12); color: var(--green); border: 1px solid rgba(16,255,176,0.25); }
+.chip-r { background: rgba(255,71,87,0.12); color: var(--red); border: 1px solid rgba(255,71,87,0.25); }
+.chip-a { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+
+/* ── SGPA/CGPA ── */
+.gpa-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
+.gpa-row input, .gpa-row select { padding: 9px 12px; font-size: .8rem; }
+
+/* ── CGPA Bars ── */
+.cg-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.cg-lbl { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--muted); width: 60px; }
+.cg-track { flex: 1; height: 8px; background: rgba(0,0,0,0.4); border-radius: 100px; overflow: hidden; border: 1px solid var(--border2); }
+.cg-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--c), var(--violet)); transition: width .9s ease; box-shadow: 0 0 8px rgba(0,212,255,0.4); }
+.cg-val { font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: var(--c); width: 36px; text-align: right; }
+
+/* ── Tips ── */
+.tips-grid-outer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.tip {
+  background: var(--glass); border: 1px solid var(--border2); border-radius: 24px; padding: 26px;
+  backdrop-filter: blur(30px);
+  transition: border-color .25s, background .25s, box-shadow .25s, transform .25s;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.04);
+  position: relative; overflow: hidden;
+}
+.tip::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent);
+  opacity: .6;
+}
+.tip:hover { border-color: rgba(0,212,255,0.18); background: rgba(0,212,255,0.03); transform: translateY(-5px); box-shadow: 0 16px 40px rgba(0,0,0,0.6), 0 0 20px rgba(0,212,255,0.06), 0 1px 0 rgba(255,255,255,0.06); }
+
+/* ── Scale Toggle Buttons ── */
+.scale-btn {
+  flex: 1; min-width: 200px;
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border2);
+  border-radius: 14px; padding: 16px 20px;
+  cursor: none; transition: all .25s; text-align: left;
+  color: var(--muted);
+}
+.scale-btn:hover { border-color: var(--border); background: rgba(0,212,255,0.04); }
+.scale-btn.active {
+  background: rgba(0,212,255,0.08);
+  border-color: rgba(0,212,255,0.35);
+  color: var(--text);
+  box-shadow: 0 0 20px rgba(0,212,255,0.08);
+}
+.scale-num {
+  font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 2rem; line-height: 1;
+  color: var(--muted); transition: color .25s; min-width: 36px;
+}
+.scale-btn.active .scale-num { color: var(--c); text-shadow: 0 0 16px rgba(0,212,255,0.5); }
+.scale-lbl { font-family: 'JetBrains Mono', monospace; font-size: .75rem; font-weight: 600; letter-spacing: .5px; line-height: 1.6; }
+footer {
+  position: relative; z-index: 1;
+  text-align: center;
+  padding: 28px 0 40px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.footer-made {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--muted);
+}
+.footer-sep { color: rgba(0,212,255,0.3); font-size: .7rem; }
+.footer-name {
+  font-family: 'Outfit', sans-serif; font-weight: 700;
+  font-size: .82rem; letter-spacing: 2px; text-transform: uppercase;
+  background: linear-gradient(135deg, var(--c), var(--violet));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 8px rgba(0,212,255,0.3));
+}
+.tip-ico { font-size: 1.6rem; margin-bottom: 8px; }
+.tip-t { font-weight: 700; font-size: .9rem; margin-bottom: 6px; color: var(--text); }
+.tip-txt { font-size: .78rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; line-height: 1.65; }
+
+/* ── Backlog ── */
+.bl-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
+
+/* ── Info Note ── */
+.note {
+  background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.1);
+  border-radius: 12px; padding: 12px 16px;
+  font-family: 'JetBrains Mono', monospace; font-size: .74rem; color: var(--muted);
+  line-height: 1.6; margin-top: 14px;
+}
+.note b { color: var(--c); font-weight: 500; }
+
+/* ── Conv Outputs ── */
+.conv-out { font-family: 'JetBrains Mono', monospace; font-size: .82rem; color: var(--c); margin-top: 6px; min-height: 20px; transition: all .2s; }
+
+/* ── Toggle Switch ── */
+.toggle-wrap { display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: var(--muted); }
+.toggle { position: relative; width: 38px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4); border-radius: 100px;
+  border: 1px solid var(--border2); cursor: none; transition: all .3s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+  left: 2px; top: 2px; background: var(--muted); transition: all .3s;
+}
+.toggle input:checked + .toggle-slider { background: rgba(0,212,255,0.15); border-color: var(--border); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--c); box-shadow: 0 0 8px var(--c); }
+
+.hidden { display: none !important; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 100px; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 30px; right: 30px; z-index: 9997;
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 16px; padding: 14px 22px;
+  font-family: 'Outfit', sans-serif; font-size: .85rem; font-weight: 600; color: var(--c);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 20px var(--glow);
+  backdrop-filter: blur(30px);
+  display: flex; align-items: center; gap: 10px;
+  transform: translateY(100px) scale(0.9); opacity: 0;
+  transition: all .4s cubic-bezier(.4,0,.2,1);
+}
+.toast.show { transform: translateY(0) scale(1); opacity: 1; }
+
+/* ── Number counter animation ── */
+.counting { animation: countPop .3s ease; }
+@keyframes countPop { 0%{transform:scale(1.1)} 100%{transform:scale(1)} }
+
+@media(max-width:640px) {
+  .sub-row,.sub-hdr { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sub-row input:first-child { grid-column: 1/-1; }
+  .gpa-row { grid-template-columns: 1fr 1fr; }
+  .bl-row { grid-template-columns: 1fr 1fr; }
+  h1 { font-size: 2.6rem; }
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+<canvas id="bg-canvas"></canvas>
+<div class="bg-mesh"></div>
+<div class="scanlines"></div>
+
+<div class="wrap">
+
+<!-- ════════ HEADER ════════ -->
+<header>
+  <div class="logo-ring">
+    <svg viewBox="0 0 88 88" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(0,212,255,0.15)" stroke-width="1"/>
+      <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(0,212,255,0.5)" stroke-width="1"
+        stroke-dasharray="40 200" stroke-linecap="round"/>
+      <circle cx="44" cy="44" r="30" fill="none" stroke="rgba(0,212,255,0.2)" stroke-width="1"
+        stroke-dasharray="10 20"/>
+      <circle cx="44" cy="44" r="22" fill="none" stroke="rgba(0,212,255,0.1)" stroke-width="1"/>
+      <!-- Dots on orbit -->
+      <circle cx="82" cy="44" r="3" fill="rgba(0,212,255,0.8)"/>
+      <circle cx="6" cy="44" r="2" fill="rgba(0,212,255,0.4)"/>
+      <circle cx="44" cy="6" r="2" fill="rgba(124,58,237,0.6)"/>
+    </svg>
+    <div class="logo-inner">🎓</div>
+  </div>
+  <div style="position:relative;display:inline-block">
+    <h1><span class="h1-main">Graduator</span></h1>
+  </div>
+  <div class="subtitle">Student Intelligence System</div>
+
+  <div class="stat-pills">
+    <div class="pill"><div class="pill-dot"></div> Attendance Tracker</div>
+    <div class="pill"><div class="pill-dot" style="background:var(--violet);box-shadow:0 0 8px var(--violet)"></div> GPA Calculator</div>
+    <div class="pill"><div class="pill-dot" style="background:var(--green);box-shadow:0 0 8px var(--green)"></div> Study Planner</div>
+    <div class="pill"><div class="pill-dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></div> Quest Planner</div>
+  </div>
+</header>
+
+<!-- ════════ NAV ════════ -->
+<div class="nav">
+  <button class="nav-btn on" onclick="switchTab('att',this)">⚡ Attendance</button>
+  <button class="nav-btn" onclick="switchTab('sub',this)">📋 All Subjects</button>
+  <button class="nav-btn" onclick="switchTab('gpa',this)">🎓 GPA / CGPA</button>
+  <button class="nav-btn" onclick="switchTab('plan',this)">🗓 Study Planner</button>
+  <button class="nav-btn" onclick="switchTab('codex',this)">📖 Codex</button>
+</div>
+
+<!-- ════════ PANEL: ATTENDANCE ════════ -->
+<div id="tab-att" class="panel on">
+  <div class="tilt-card" id="card-att-main">
+    <div class="sec-title">Semester Config</div>
+
+    <!-- Sliders -->
+    <div class="form-grid" id="att-sliders">
+
+      <div class="field">
+        <div class="field-label"><span>Min Attendance</span><span class="field-val" id="lbl-minAtt">75%</span></div>
+        <input type="range" id="sl-minAtt" min="1" max="100" value="75" oninput="updLbl('minAtt',this.value,'%')"/>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span>Total Weeks</span><span class="field-val" id="lbl-weeks">16 wk</span></div>
+        <input type="range" id="sl-weeks" min="1" max="52" value="16" oninput="updLbl('weeks',this.value,' wk')"/>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span>Hours / Week</span><span class="field-val" id="lbl-hpw">5 h</span></div>
+        <input type="range" id="sl-hpw" min="1" max="30" value="5" oninput="updLbl('hpw',this.value,' h')"/>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span>Hours Attended</span><span class="field-val" id="lbl-attended">30 h</span></div>
+        <input type="range" id="sl-attended" min="0" max="500" value="30" oninput="updLbl('attended',this.value,' h')"/>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span>Weeks Remaining</span><span class="field-val" id="lbl-weeksLeft">8 wk</span></div>
+        <input type="range" id="sl-weeksLeft" min="0" max="52" value="8" oninput="updLbl('weeksLeft',this.value,' wk')"/>
+      </div>
+
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="calcAtt()">⚡ Calculate</button>
+      <button class="btn btn-ghost" onclick="resetAtt()">↺ Reset</button>
+    </div>
+  </div>
+
+  <div id="att-out" class="hidden">
+
+    <!-- Ring Gauges Row -->
+    <div class="tilt-card">
+      <div class="sec-title">Attendance Vitals</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:center">
+        <div class="ring-wrap">
+          <svg class="ring-svg" width="140" height="140" viewBox="0 0 140 140">
+            <circle class="ring-bg" cx="70" cy="70" r="58"/>
+            <circle class="ring-fill" id="ring-cur" cx="70" cy="70" r="58" stroke="var(--c)"
+              stroke-dasharray="364.4" stroke-dashoffset="364.4"/>
+            <text class="ring-text-val" id="ring-cur-val" x="70" y="65">0%</text>
+            <text class="ring-text-sub" x="70" y="82">CURRENT</text>
+          </svg>
+          <div class="ring-label">Current Attendance</div>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring-svg" width="120" height="120" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="50"/>
+            <circle class="ring-fill" id="ring-bunk" cx="60" cy="60" r="50" stroke="var(--green)"
+              stroke-dasharray="314.2" stroke-dashoffset="314.2"/>
+            <text class="ring-text-val" id="ring-bunk-val" x="60" y="55" font-size="22">0</text>
+            <text class="ring-text-sub" x="60" y="71">BUNKABLE</text>
+          </svg>
+          <div class="ring-label">Hours Can Skip</div>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring-svg" width="120" height="120" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="50"/>
+            <circle class="ring-fill" id="ring-best" cx="60" cy="60" r="50" stroke="var(--violet)"
+              stroke-dasharray="314.2" stroke-dashoffset="314.2"/>
+            <text class="ring-text-val" id="ring-best-val" x="60" y="55" font-size="22">0%</text>
+            <text class="ring-text-sub" x="60" y="71">BEST CASE</text>
+          </svg>
+          <div class="ring-label">Max Possible</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="res-grid" id="att-cards"></div>
+
+    <!-- Progress Bar -->
+    <div class="tilt-card" style="margin-top:20px">
+      <div class="sec-title">Attendance Spectrum</div>
+      <div class="horizon-wrap">
+        <div class="horizon-label">
+          <span style="color:var(--red)">0%</span>
+          <span id="att-bar-pct" style="color:var(--c);font-weight:700">—</span>
+          <span style="color:var(--green)">100%</span>
+        </div>
+        <div class="horizon-track">
+          <div class="horizon-fill" id="att-bar" style="width:0%;background:var(--c);color:var(--c)"></div>
+          <div class="horizon-min-marker" id="att-min-marker" style="left:75%"></div>
+          <div class="horizon-min-label" id="att-min-label" style="left:75%">75%</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted)">
+          <span style="color:var(--red)">Fail Zone</span>
+          <span style="color:var(--amber)">Danger Zone</span>
+          <span style="color:var(--green)">Safe Zone</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="att-verdict"></div>
+  </div>
+</div>
+
+<!-- ════════ PANEL: ALL SUBJECTS ════════ -->
+<div id="tab-sub" class="panel">
+  <div class="tilt-card">
+    <div class="sec-title">Per-Subject Tracker</div>
+    <div class="form-grid" style="margin-bottom:20px">
+      <div class="field"><div class="field-label"><span>Required %</span><span class="field-val" id="lbl-sub-min">75%</span></div><input type="range" id="sl-sub-min" min="1" max="100" value="75" oninput="updLbl('sub-min',this.value,'%')"/></div>
+      <div class="field"><div class="field-label"><span>Weeks Remaining</span><span class="field-val" id="lbl-sub-wl">6 wk</span></div><input type="range" id="sl-sub-wl" min="0" max="30" value="6" oninput="updLbl('sub-wl',this.value,' wk')"/></div>
+    </div>
+    <div class="sub-hdr"><span>Subject</span><span>Total</span><span>Attended</span><span>Hrs/Wk</span><span></span></div>
+    <div id="sub-list"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="addSubRow()">+ Add Subject</button>
+      <button class="btn btn-primary" onclick="calcSubs()">⚡ Analyse</button>
+    </div>
+  </div>
+  <div id="sub-out" class="hidden">
+    <div class="tilt-card"><div class="sec-title">Subject Analysis</div><div id="sub-body"></div></div>
+    <div class="res-grid">
+      <div class="res-card rc-g"><div class="res-label">Safe Subjects</div><div class="res-val" id="sc-safe">—</div><div class="res-sub">Can bunk freely</div></div>
+      <div class="res-card rc-r"><div class="res-label">Danger Subjects</div><div class="res-val" id="sc-dang">—</div><div class="res-sub">Attend everything</div></div>
+      <div class="res-card rc-a"><div class="res-label">Warning Zone</div><div class="res-val" id="sc-warn">—</div><div class="res-sub">Within 5% of min</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PANEL: GPA ════════ -->
+<div id="tab-gpa" class="panel">
+
+  <!-- Scale Selector -->
+  <div class="tilt-card" style="margin-bottom:20px">
+    <div class="sec-title">Grading Scale</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="scale-btn active" id="scale-10" onclick="setScale(10)">
+        <span class="scale-num">10</span>
+        <span class="scale-lbl">Indian / 10-point scale<br><span style="font-weight:400;opacity:.6">O, A+, A, B+, B, C, D, F</span></span>
+      </button>
+      <button class="scale-btn" id="scale-4" onclick="setScale(4)">
+        <span class="scale-num">4</span>
+        <span class="scale-lbl">US / 4-point GPA<br><span style="font-weight:400;opacity:.6">A, A−, B+, B, B−, C+, C, D, F</span></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="tilt-card">
+    <div class="sec-title">SGPA Calculator</div>
+    <div class="note" style="margin-bottom:18px"><b>Formula:</b> SGPA = Σ(Credits × Grade Points) / Σ(Credits) &nbsp;·&nbsp; <span id="scale-note" style="color:var(--c)">Scale: 10-point</span></div>
+    <div id="sgpa-list"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="addGpaRow()">+ Add Subject</button>
+      <button class="btn btn-primary" onclick="calcSgpa()">⚡ Calculate</button>
+    </div>
+    <div id="sgpa-out" class="hidden" style="margin-top:22px">
+      <div class="res-grid">
+        <div class="res-card rc-c"><div class="res-label">SGPA</div><div class="res-val" id="sgpa-v">—</div><div class="res-sub" id="sgpa-lbl">—</div></div>
+        <div class="res-card rc-v"><div class="res-label">Credits</div><div class="res-val" id="sgpa-cr">—</div><div class="res-sub">This semester</div></div>
+        <div class="res-card rc-p"><div class="res-label">Grade Points</div><div class="res-val" id="sgpa-pt">—</div><div class="res-sub">Weighted total</div></div>
+      </div>
+      <!-- GPA Ring -->
+      <div class="tilt-card" style="margin-top:18px">
+        <div class="sec-title">GPA Spectrum</div>
+        <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap">
+          <div class="ring-wrap">
+            <svg class="ring-svg" width="140" height="140" viewBox="0 0 140 140">
+              <circle class="ring-bg" cx="70" cy="70" r="58"/>
+              <circle class="ring-fill" id="ring-gpa" cx="70" cy="70" r="58" stroke="var(--violet)"
+                stroke-dasharray="364.4" stroke-dashoffset="364.4"/>
+              <text class="ring-text-val" id="ring-gpa-val" x="70" y="65">—</text>
+              <text class="ring-text-sub" id="ring-gpa-scale" x="70" y="82">SGPA / 10</text>
+            </svg>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <div id="gpa-rank-badge" style="font-size:2.2rem;margin-bottom:8px"></div>
+            <div id="gpa-rank-title" style="font-weight:800;font-size:1.1rem;margin-bottom:4px"></div>
+            <div id="gpa-rank-sub" style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--muted)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tilt-card">
+    <div class="sec-title">CGPA Tracker</div>
+    <div id="cgpa-list"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="addCgpaSem()">+ Add Semester</button>
+      <button class="btn btn-primary" onclick="calcCgpa()">⚡ Calculate</button>
+    </div>
+    <div id="cgpa-out" class="hidden" style="margin-top:18px">
+      <div class="res-grid">
+        <div class="res-card rc-c"><div class="res-label">CGPA</div><div class="res-val" id="cgpa-v">—</div><div class="res-sub" id="cgpa-cls">—</div></div>
+        <div class="res-card rc-g"><div class="res-label">Equivalent %</div><div class="res-val" id="cgpa-pct">—</div><div class="res-sub" id="cgpa-pct-sub">× 10 conversion</div></div>
+      </div>
+      <div style="margin-top:18px" id="cgpa-bars"></div>
+    </div>
+  </div>
+
+  <div class="tilt-card">
+    <div class="sec-title">Target CGPA Planner</div>
+    <div class="form-grid">
+      <div class="field"><div class="field-label"><span>Current CGPA</span><span class="field-val" id="lbl-cur-cg">7.0</span></div><input type="range" id="sl-cur-cg" min="0" max="10" step="0.1" value="7.0" oninput="updLbl('cur-cg',this.value,'')"/></div>
+      <div class="field"><div class="field-label"><span>Sems Completed</span><span class="field-val" id="lbl-sd">4</span></div><input type="range" id="sl-sd" min="0" max="12" step="1" value="4" oninput="updLbl('sd',this.value,'')"/></div>
+      <div class="field"><div class="field-label"><span>Sems Remaining</span><span class="field-val" id="lbl-sl">4</span></div><input type="range" id="sl-sl" min="1" max="12" step="1" value="4" oninput="updLbl('sl',this.value,'')"/></div>
+      <div class="field"><div class="field-label"><span>Target CGPA</span><span class="field-val" id="lbl-tg">8.0</span></div><input type="range" id="sl-tg" min="0" max="10" step="0.1" value="8.0" oninput="updLbl('tg',this.value,'')"/></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="calcTarget()">🎯 Plan Target</button></div>
+    <div id="tgt-out" class="hidden" style="margin-top:18px">
+      <div class="res-grid">
+        <div class="res-card rc-a"><div class="res-label">Req. SGPA / Sem</div><div class="res-val" id="req-sgpa">—</div><div class="res-sub">Every remaining sem</div></div>
+        <div class="res-card" id="tgt-vcard"><div class="res-label">Verdict</div><div class="res-val" id="tgt-vval" style="font-size:1.1rem">—</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PANEL: STUDY PLANNER ════════ -->
+<div id="tab-plan" class="panel">
+  <div class="tilt-card">
+    <div class="sec-title">Quest Planner</div>
+    <div class="form-grid" style="margin-bottom:20px">
+      <div class="field"><div class="field-label"><span>Exam Date</span></div><input type="date" id="exam-date"/></div>
+      <div class="field"><div class="field-label"><span>Study Hours / Day</span><span class="field-val" id="lbl-sh">4 h</span></div><input type="range" id="sl-sh" min="1" max="16" value="4" oninput="updLbl('sh',this.value,' h')"/></div>
+    </div>
+    <div class="sec-title">Subjects to Conquer</div>
+    <div id="bl-list"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="addBlRow()">+ Add Subject</button>
+      <button class="btn btn-primary" onclick="calcBacklog()">⚡ Generate Plan</button>
+    </div>
+  </div>
+  <div id="bl-out" class="hidden"><div class="tilt-card"><div class="sec-title">Battle Plan</div><div id="bl-body"></div></div></div>
+
+  <div class="tilt-card">
+    <div class="sec-title">Pomodoro Planner</div>
+    <div class="form-grid">
+      <div class="field"><div class="field-label"><span>Available Hours</span><span class="field-val" id="lbl-ph">3 h</span></div><input type="range" id="sl-ph" min="1" max="12" value="3" step="0.5" oninput="updLbl('ph',this.value,' h')"/></div>
+      <div class="field"><div class="field-label"><span>Focus Block (min)</span><span class="field-val" id="lbl-pf">25 m</span></div><input type="range" id="sl-pf" min="10" max="90" value="25" oninput="updLbl('pf',this.value,' m')"/></div>
+      <div class="field"><div class="field-label"><span>Short Break (min)</span><span class="field-val" id="lbl-pb">5 m</span></div><input type="range" id="sl-pb" min="1" max="30" value="5" oninput="updLbl('pb',this.value,' m')"/></div>
+      <div class="field"><div class="field-label"><span>Long Break Every N</span><span class="field-val" id="lbl-pn">4</span></div><input type="range" id="sl-pn" min="2" max="10" value="4" oninput="updLbl('pn',this.value,'')"/></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="calcPomo()">⏱ Plan Sessions</button></div>
+    <div id="pomo-out" class="hidden" style="margin-top:18px">
+      <div class="res-grid" id="pomo-cards"></div>
+      <div id="pomo-sched" style="margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--muted);line-height:2.2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PANEL: CODEX ════════ -->
+<div id="tab-codex" class="panel">
+  <div id="tips-grid" class="tips-grid-outer"></div>
+  <div class="tilt-card">
+    <div class="sec-title">Quick Converters</div>
+    <div class="form-grid">
+      <div class="field">
+        <div class="field-label"><span>CGPA → Percentage</span></div>
+        <input type="range" id="conv-cgpa-sl" min="0" max="10" step="0.1" value="7.5" oninput="liveConv()"/>
+        <div class="conv-out" id="conv-cgpa-out"></div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Percentage → CGPA</span></div>
+        <input type="range" id="conv-pct-sl" min="0" max="100" step="0.5" value="75" oninput="liveConv()"/>
+        <div class="conv-out" id="conv-pct-out" style="color:var(--violet)"></div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span>Study Hours → Pomodoros</span></div>
+        <input type="range" id="conv-hrs-sl" min="0.5" max="12" step="0.5" value="3" oninput="liveConv()"/>
+        <div class="conv-out" id="conv-hrs-out" style="color:var(--green)"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- ════════ FOOTER ════════ -->
+<footer>
+  <span class="footer-made">Powered By</span>
+  <span class="footer-sep">◆</span>
+  <span class="footer-name">Dhruv Parekh</span>
+</footer>
+
+<!-- Toast -->
+<div class="toast" id="toast"><span id="t-ico">⚡</span><span id="t-msg">Done!</span></div>
+
+<script>
+// ════════ PARTICLES BG ════════
+(function(){
+  const c = document.getElementById('bg-canvas');
+  const ctx = c.getContext('2d');
+  let W, H, pts;
+  function init(){
+    W = c.width = innerWidth;
+    H = c.height = innerHeight;
+    pts = Array.from({length:120}, ()=>({
+      x: Math.random()*W, y: Math.random()*H,
+      vx: (Math.random()-.5)*.18, vy: (Math.random()-.5)*.18,
+      r: Math.random()*.9+.2, a: Math.random()
+    }));
+  }
+  init(); window.addEventListener('resize', init);
+  let mx=W/2, my=H/2;
+  document.addEventListener('mousemove', e=>{ mx=e.clientX; my=e.clientY; });
+
+  // ── Shooting stars ──
+  function newStar(){
+    const angle = (Math.random()*25+8)*Math.PI/180;
+    const speed = Math.random()*7+5;
+    return {
+      x: Math.random()*W*1.4 - W*0.2,
+      y: Math.random()*H*0.45 - 40,
+      vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+      len: Math.random()*130+70,
+      alpha: 0, maxAlpha: Math.random()*0.65+0.25,
+      fadeIn: true, width: Math.random()*1.1+0.35,
+      delay: Math.random()*280+40, active: false
+    };
+  }
+  let shooters = Array.from({length:6}, ()=>newStar());
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // particles
+    pts.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if(p.x<0) p.x=W; if(p.x>W) p.x=0;
+      if(p.y<0) p.y=H; if(p.y>H) p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(0,180,220,${p.a*.5})`;
+      ctx.fill();
+    });
+
+    // connections
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<100){
+          ctx.beginPath();
+          ctx.moveTo(pts[i].x,pts[i].y);
+          ctx.lineTo(pts[j].x,pts[j].y);
+          ctx.strokeStyle=`rgba(0,180,220,${(1-d/100)*0.06})`;
+          ctx.lineWidth=.5; ctx.stroke();
+        }
+      }
+    }
+
+    // shooting stars
+    shooters.forEach((s, idx) => {
+      if(!s.active){ s.delay--; if(s.delay<=0) s.active=true; return; }
+      if(s.fadeIn){ s.alpha+=0.05; if(s.alpha>=s.maxAlpha){s.alpha=s.maxAlpha;s.fadeIn=false;} }
+      else { s.alpha-=0.025; }
+      if(s.alpha<=0){ shooters[idx]=newStar(); shooters[idx].delay=Math.random()*320+80; return; }
+      s.x+=s.vx; s.y+=s.vy;
+      const norm = Math.sqrt(s.vx*s.vx+s.vy*s.vy);
+      const tx = s.x - (s.vx/norm)*s.len;
+      const ty = s.y - (s.vy/norm)*s.len;
+      const grad = ctx.createLinearGradient(tx,ty,s.x,s.y);
+      grad.addColorStop(0,'rgba(255,255,255,0)');
+      grad.addColorStop(0.5,`rgba(150,225,255,${s.alpha*0.35})`);
+      grad.addColorStop(1,`rgba(255,255,255,${s.alpha})`);
+      ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(s.x,s.y);
+      ctx.strokeStyle=grad; ctx.lineWidth=s.width; ctx.lineCap='round'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.width*0.8,0,Math.PI*2);
+      ctx.fillStyle=`rgba(220,245,255,${s.alpha})`; ctx.fill();
+    });
+
+    // mouse glow orb
+    const g = ctx.createRadialGradient(mx,my,0,mx,my,180);
+    g.addColorStop(0,'rgba(0,212,255,0.04)');
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ════════ CURSOR ════════
+const cur = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+let cx=0, cy=0, rx=0, ry=0;
+document.addEventListener('mousemove', e=>{
+  cx=e.clientX; cy=e.clientY;
+  cur.style.left=cx+'px'; cur.style.top=cy+'px';
+});
+// lerp factor 0.30 — snappy, no visible lag, no chop
+(function lerpRing(){
+  rx += (cx-rx)*0.30; ry += (cy-ry)*0.30;
+  ring.style.left = rx.toFixed(2)+'px';
+  ring.style.top  = ry.toFixed(2)+'px';
+  requestAnimationFrame(lerpRing);
+})();
+
+// ════════ 3D TILT ════════
+document.addEventListener('mousemove', e=>{
+  document.querySelectorAll('.tilt-card').forEach(card=>{
+    const r = card.getBoundingClientRect();
+    const inRange = e.clientX>r.left-40 && e.clientX<r.right+40 && e.clientY>r.top-40 && e.clientY<r.bottom+40;
+    if(!inRange){ card.style.transform=''; return; }
+    const cx2 = r.left+r.width/2, cy2 = r.top+r.height/2;
+    const dx=(e.clientX-cx2)/(r.width/2), dy=(e.clientY-cy2)/(r.height/2);
+    const tiltX = dy*5, tiltY = -dx*5;
+    card.style.transform = `perspective(900px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateZ(4px)`;
+    // mouse spotlight
+    const mx2=((e.clientX-r.left)/r.width*100).toFixed(1);
+    const my2=((e.clientY-r.top)/r.height*100).toFixed(1);
+    card.style.setProperty('--mx', mx2+'%');
+    card.style.setProperty('--my', my2+'%');
+  });
+  document.querySelectorAll('.res-card').forEach(card=>{
+    const r=card.getBoundingClientRect();
+    const dx=(e.clientX-r.left-r.width/2)/(r.width/2);
+    const dy=(e.clientY-r.top-r.height/2)/(r.height/2);
+    const d=Math.sqrt(dx*dx+dy*dy);
+    if(d<1.5) card.style.transform=`perspective(500px) rotateX(${dy*4}deg) rotateY(${-dx*4}deg) translateY(-4px) translateZ(6px)`;
+    else card.style.transform='';
+  });
+});
+
+// ════════ SLIDER LABELS ════════
+function updLbl(id, val, suffix){
+  document.getElementById('lbl-'+id).textContent = val + suffix;
+  // live update rings if att sliders
+  if(['minAtt','weeks','hpw','attended','weeksLeft'].includes(id) && !document.getElementById('att-out').classList.contains('hidden')){
+    calcAtt();
+  }
+}
+
+// ════════ RING GAUGE ════════
+function setRing(id, pct, maxDash){
+  const el = document.getElementById('ring-'+id);
+  const offset = maxDash - (pct/100)*maxDash;
+  el.style.strokeDashoffset = offset;
+}
+function setRingVal(id, txt){ document.getElementById('ring-'+id+'-val').textContent = txt; }
+
+// ════════ ANIMATED NUMBER ════════
+function animateNum(el, target, isFloat=false, suffix=''){
+  const start = parseFloat(el.textContent)||0;
+  const dur = 600; const t0 = performance.now();
+  function step(t){
+    const p = Math.min((t-t0)/dur, 1);
+    const eased = 1-Math.pow(1-p,3);
+    const val = start + (target-start)*eased;
+    el.textContent = (isFloat ? val.toFixed(1) : Math.round(val)) + suffix;
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ════════ TOAST ════════
+function toast(ico, msg){
+  const t=document.getElementById('toast');
+  document.getElementById('t-ico').textContent=ico;
+  document.getElementById('t-msg').textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ════════ TAB SWITCHER ════════
+function switchTab(name, el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tab-'+name).classList.add('on');
+  el.classList.add('on');
+}
+
+// ════════ ATTENDANCE ════════
+function calcAtt(){
+  const minAtt   = +document.getElementById('sl-minAtt').value;
+  const weeks    = +document.getElementById('sl-weeks').value;
+  const hpw      = +document.getElementById('sl-hpw').value;
+  const attended = +document.getElementById('sl-attended').value;
+  const weeksLeft= +document.getElementById('sl-weeksLeft').value;
+
+  const totalHrs   = weeks * hpw;
+  const wDone      = weeks - weeksLeft;
+  const held       = wDone * hpw;
+  const curPct     = held>0 ? attended/held*100 : 0;
+  const required   = Math.ceil(minAtt/100*totalHrs);
+  const future     = weeksLeft*hpw;
+  const maxAbsent  = totalHrs - required;
+  const usedAbsent = held - attended;
+  const canBunk    = Math.max(0, Math.floor(maxAbsent - usedAbsent));
+  const bestPct    = totalHrs>0 ? (attended+future)/totalHrs*100 : 0;
+
+  // Rings
+  setRing('cur', Math.min(curPct,100), 364.4);
+  setRingVal('cur', curPct.toFixed(1)+'%');
+  const bunkPct = totalHrs>0 ? canBunk/totalHrs*100 : 0;
+  setRing('bunk', Math.min(bunkPct,100), 314.2);
+  setRingVal('bunk', canBunk);
+  setRing('best', Math.min(bestPct,100), 314.2);
+  setRingVal('best', bestPct.toFixed(1)+'%');
+
+  // Ring colors
+  const ringCur = document.getElementById('ring-cur');
+  ringCur.style.stroke = curPct>=minAtt ? 'var(--c)' : curPct>=minAtt-5 ? 'var(--amber)' : 'var(--red)';
+
+  // Cards
+  document.getElementById('att-cards').innerHTML = `
+    <div class="res-card rc-c"><div class="res-label">Total Hours</div><div class="res-val">${totalHrs}</div><div class="res-sub">${weeks}wk × ${hpw}h</div></div>
+    <div class="res-card ${canBunk>0?'rc-g':'rc-r'}"><div class="res-label">Hours Left to Bunk</div><div class="res-val">${canBunk}</div><div class="res-sub">Remaining allowance</div></div>
+    <div class="res-card rc-p"><div class="res-label">Total Bunkable Hours</div><div class="res-val">${maxAbsent}</div><div class="res-sub">Start to end — ever</div></div>
+    <div class="res-card rc-a"><div class="res-label">Must Attend</div><div class="res-val">${required}</div><div class="res-sub">of ${totalHrs} total</div></div>
+    <div class="res-card rc-v"><div class="res-label">Bunks Used</div><div class="res-val">${usedAbsent}</div><div class="res-sub">of ${maxAbsent} max</div></div>
+  `;
+
+  // Bar
+  const barEl = document.getElementById('att-bar');
+  barEl.style.width = Math.min(curPct,100)+'%';
+  barEl.style.background = curPct>=minAtt ? 'var(--green)' : curPct>=minAtt-5 ? 'var(--amber)' : 'var(--red)';
+  barEl.style.boxShadow = `0 0 16px currentColor`;
+  document.getElementById('att-bar-pct').textContent = curPct.toFixed(1)+'%';
+  document.getElementById('att-min-marker').style.left = minAtt+'%';
+  document.getElementById('att-min-label').style.left = minAtt+'%';
+  document.getElementById('att-min-label').textContent = 'Min '+minAtt+'%';
+
+  // Verdict
+  const v = document.getElementById('att-verdict');
+  if(canBunk>0 && curPct>=minAtt){
+    v.innerHTML=`<div class="verdict safe"><span class="vi">✅</span><div><strong>You're safe!</strong> You can skip up to <strong>${canBunk} more hours</strong> and still clear ${minAtt}% attendance.</div></div>`;
+  } else if(canBunk===0 && curPct>=minAtt){
+    v.innerHTML=`<div class="verdict warn"><span class="vi">⚠️</span><div><strong>Zero slack!</strong> You've used every allowed absence. Attend everything from here.</div></div>`;
+  } else if(bestPct>=minAtt){
+    v.innerHTML=`<div class="verdict warn"><span class="vi">⚡</span><div><strong>Recovery possible!</strong> You need to attend every remaining class to hit ${minAtt}%.</div></div>`;
+  } else {
+    v.innerHTML=`<div class="verdict dead"><span class="vi">🚨</span><div><strong>Beyond saving!</strong> Even perfect attendance won't clear ${minAtt}%. Speak to your faculty ASAP.</div></div>`;
+  }
+
+  document.getElementById('att-out').classList.remove('hidden');
+}
+
+function resetAtt(){
+  document.getElementById('sl-minAtt').value=75; updLbl('minAtt',75,'%');
+  document.getElementById('sl-weeks').value=16; updLbl('weeks',16,' wk');
+  document.getElementById('sl-hpw').value=5; updLbl('hpw',5,' h');
+  document.getElementById('sl-attended').value=30; updLbl('attended',30,' h');
+  document.getElementById('sl-weeksLeft').value=8; updLbl('weeksLeft',8,' wk');
+  document.getElementById('att-out').classList.add('hidden');
+}
+
+// ════════ SUBJECTS ════════
+let subC=0;
+function addSubRow(){
+  subC++;
+  const d=document.createElement('div'); d.className='sub-row';
+  d.innerHTML=`<input type="text" placeholder="Subject Name"/><input type="number" placeholder="Total" min="0"/><input type="number" placeholder="Attended" min="0"/><input type="number" placeholder="Hrs/wk" min="1"/><button class="del-btn" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('sub-list').appendChild(d);
+}
+function calcSubs(){
+  const minA=+document.getElementById('sl-sub-min').value;
+  const wl=+document.getElementById('sl-sub-wl').value;
+  const rows=document.querySelectorAll('#sub-list .sub-row');
+  if(!rows.length){alert('Add at least one subject!');return;}
+  let safe=0,dang=0,warn=0,html='';
+  rows.forEach(r=>{
+    const inp=r.querySelectorAll('input');
+    const name=inp[0].value||'Unnamed', tot=+inp[1].value||0, att=+inp[2].value||0, hpw=+inp[3].value||1;
+    const future=wl*hpw, totF=tot+future;
+    const curP=tot>0?att/tot*100:0;
+    const req=Math.ceil(minA/100*totF);
+    const bunk=Math.max(0,Math.floor(totF-req-(tot-att)));
+    const bestP=totF>0?(att+future)/totF*100:0;
+    let chip,cls;
+    if(curP>=minA+5){chip='chip-g';cls='✅ Safe';safe++;}
+    else if(curP<minA-1){chip='chip-r';cls='🚨 Danger';dang++;}
+    else{chip='chip-a';cls='⚠️ Warning';warn++;}
+    html+=`<div class="res-row"><span style="color:var(--text);font-weight:600">${name}</span><span style="color:var(--c)">${curP.toFixed(1)}%</span><span style="color:${bunk>0?'var(--green)':'var(--red)'}">${bunk>0?'Bunk '+bunk+' hrs':'Attend all'}</span><span style="color:var(--muted)">${bestP.toFixed(1)}% max</span><span class="chip ${chip}">${cls}</span></div>`;
+  });
+  document.getElementById('sub-body').innerHTML=html;
+  document.getElementById('sc-safe').textContent=safe;
+  document.getElementById('sc-dang').textContent=dang;
+  document.getElementById('sc-warn').textContent=warn;
+  document.getElementById('sub-out').classList.remove('hidden');
+  toast('📋','Subject analysis complete!');
+}
+
+// ════════ SCALE ════════
+let gpaScale = 10; // 10 or 4
+
+function setScale(s){
+  gpaScale = s;
+  document.getElementById('scale-10').classList.toggle('active', s===10);
+  document.getElementById('scale-4').classList.toggle('active', s===4);
+  document.getElementById('scale-note').textContent = `Scale: ${s}-point`;
+  document.getElementById('ring-gpa-scale').textContent = `SGPA / ${s}`;
+
+  // Adjust Target Planner sliders
+  const step = s===4 ? 0.1 : 0.1;
+  const defCur = s===4 ? 3.0 : 7.0;
+  const defTgt = s===4 ? 3.5 : 8.0;
+  const slCur = document.getElementById('sl-cur-cg');
+  const slTgt = document.getElementById('sl-tg');
+  slCur.max = s; slCur.value = Math.min(+slCur.value, s); updLbl('cur-cg', slCur.value, '');
+  slTgt.max = s; slTgt.value = Math.min(+slTgt.value, s); updLbl('tg', slTgt.value, '');
+
+  // Rebuild SGPA grade options
+  document.querySelectorAll('#sgpa-list .gpa-row select').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = gpaScale===10 ? gpOpts10() : gpOpts4();
+    sel.value = cur;
+  });
+
+  // Update CGPA % sub label
+  const sub = document.getElementById('cgpa-pct-sub');
+  if(sub) sub.textContent = s===10 ? '× 10 conversion' : '× 25 conversion';
+
+  // Hide stale results
+  document.getElementById('sgpa-out').classList.add('hidden');
+  document.getElementById('cgpa-out').classList.add('hidden');
+  document.getElementById('tgt-out').classList.add('hidden');
+  toast('⚙️', `Switched to ${s}-point scale`);
+}
+
+function gpOpts10(){
+  return `<option value="">Grade</option><option value="10">O — 10</option><option value="9">A+ — 9</option><option value="8">A — 8</option><option value="7">B+ — 7</option><option value="6">B — 6</option><option value="5">C — 5</option><option value="4">D — 4</option><option value="0">F — 0</option>`;
+}
+function gpOpts4(){
+  return `<option value="">Grade</option><option value="4.0">A — 4.0</option><option value="3.7">A− — 3.7</option><option value="3.3">B+ — 3.3</option><option value="3.0">B — 3.0</option><option value="2.7">B− — 2.7</option><option value="2.3">C+ — 2.3</option><option value="2.0">C — 2.0</option><option value="1.7">C− — 1.7</option><option value="1.0">D — 1.0</option><option value="0">F — 0</option>`;
+}
+
+// ════════ SGPA ════════
+let gpaC=0;
+function addGpaRow(){
+  gpaC++;
+  const d=document.createElement('div'); d.className='gpa-row';
+  d.innerHTML=`<input type="text" placeholder="Subject ${gpaC}"/><input type="number" placeholder="Credits" min="1" max="6" step="0.5"/><select>${gpaScale===10?gpOpts10():gpOpts4()}</select><button class="del-btn" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('sgpa-list').appendChild(d);
+}
+
+function calcSgpa(){
+  const rows=document.querySelectorAll('#sgpa-list .gpa-row');
+  if(!rows.length){alert('Add subjects first!');return;}
+  let tc=0,tp=0;
+  rows.forEach(r=>{
+    const c=+r.querySelectorAll('input')[1].value||0, g=+r.querySelector('select').value||0;
+    tc+=c; tp+=c*g;
+  });
+  const sgpa=tc>0?tp/tc:0;
+  const maxS = gpaScale;
+  document.getElementById('sgpa-v').textContent=sgpa.toFixed(2);
+  document.getElementById('sgpa-cr').textContent=tc;
+  document.getElementById('sgpa-pt').textContent=tp.toFixed(1);
+
+  let lbl, ranks;
+  if(gpaScale===10){
+    lbl = sgpa>=9?'Outstanding 🏆':sgpa>=8?'Excellent ⭐':sgpa>=7?'Very Good 👍':sgpa>=6?'Good':'Needs Work';
+    ranks=[[9,'⭐','DISTINCTION','Top tier — exceptional performance'],[8,'🔥','EXCELLENT','Dean\'s List territory'],[7,'💪','VERY GOOD','Above average — keep pushing'],[6,'📘','GOOD','Decent — room to grow'],[0,'📉','NEEDS WORK','Time to grind harder']];
+  } else {
+    lbl = sgpa>=3.7?'Outstanding 🏆':sgpa>=3.3?'Excellent ⭐':sgpa>=3.0?'Very Good 👍':sgpa>=2.0?'Good':'Needs Work';
+    ranks=[[3.7,'⭐','DISTINCTION','Top tier — Dean\'s List'],[3.3,'🔥','EXCELLENT','Excellent standing'],[3.0,'💪','VERY GOOD','Above average'],[2.0,'📘','GOOD','Satisfactory'],[0,'📉','NEEDS WORK','Below average']];
+  }
+  document.getElementById('sgpa-lbl').textContent=lbl;
+  setRing('gpa', sgpa/maxS*100, 364.4);
+  setRingVal('gpa', sgpa.toFixed(2));
+  document.getElementById('ring-gpa-scale').textContent=`SGPA / ${maxS}`;
+  const r=ranks.find(x=>sgpa>=x[0]);
+  document.getElementById('gpa-rank-badge').textContent=r[1];
+  document.getElementById('gpa-rank-title').textContent=r[2];
+  document.getElementById('gpa-rank-sub').textContent=r[3];
+  const topThird = maxS*(2/3);
+  document.getElementById('gpa-rank-title').style.color=sgpa>=maxS*0.9?'var(--amber)':sgpa>=topThird?'var(--green)':sgpa>=maxS*0.6?'var(--c)':'var(--muted)';
+  document.getElementById('ring-gpa').style.stroke=sgpa>=topThird?'var(--green)':sgpa>=maxS*0.5?'var(--violet)':'var(--red)';
+  document.getElementById('sgpa-out').classList.remove('hidden');
+  toast('🎓','SGPA calculated!');
+}
+
+let cgpaC=0;
+function addCgpaSem(){
+  cgpaC++;
+  const d=document.createElement('div'); d.className='gpa-row';
+  d.innerHTML=`<input type="text" placeholder="Sem ${cgpaC}" value="Sem ${cgpaC}"/><input type="number" placeholder="${gpaScale===10?'SGPA (0–10)':'GPA (0–4)'}" min="0" max="${gpaScale}" step="0.01"/><input type="number" placeholder="Credits" min="1"/><button class="del-btn" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('cgpa-list').appendChild(d);
+}
+
+function calcCgpa(){
+  const rows=document.querySelectorAll('#cgpa-list .gpa-row');
+  if(!rows.length){alert('Add semesters first!');return;}
+  let tc=0,tp=0,data=[];
+  rows.forEach(r=>{
+    const inp=r.querySelectorAll('input');
+    const sem=inp[0].value||'Sem', sg=+inp[1].value||0, cr=+inp[2].value||0;
+    tc+=cr; tp+=sg*cr; data.push({sem,sg});
+  });
+  const cgpa=tc>0?tp/tc:0;
+  const maxS=gpaScale;
+  document.getElementById('cgpa-v').textContent=cgpa.toFixed(2);
+
+  // Percentage conversion
+  let pctVal, pctSub;
+  if(maxS===10){ pctVal=(cgpa*10).toFixed(1)+'%'; pctSub='× 10 conversion'; }
+  else { pctVal=(cgpa/4*100).toFixed(1)+'%'; pctSub='÷ 4 × 100'; }
+  document.getElementById('cgpa-pct').textContent=pctVal;
+  document.getElementById('cgpa-pct-sub').textContent=pctSub;
+
+  // Classification
+  let cls;
+  if(maxS===10){ cls=cgpa>=9?'First Class with Distinction 🏆':cgpa>=7.5?'First Class ⭐':cgpa>=6?'Second Class':cgpa>=5?'Pass Class':'Below Pass'; }
+  else { cls=cgpa>=3.7?'Summa Cum Laude 🏆':cgpa>=3.3?'Magna Cum Laude ⭐':cgpa>=3.0?'Cum Laude':cgpa>=2.0?'Good Standing':'Academic Probation'; }
+  document.getElementById('cgpa-cls').textContent=cls;
+
+  document.getElementById('cgpa-bars').innerHTML=data.map(s=>`<div class="cg-row"><span class="cg-lbl">${s.sem}</span><div class="cg-track"><div class="cg-fill" style="width:${s.sg/maxS*100}%"></div></div><span class="cg-val">${s.sg.toFixed(2)}</span></div>`).join('');
+  document.getElementById('cgpa-out').classList.remove('hidden');
+  toast('🏆','CGPA calculated!');
+}
+
+function calcTarget(){
+  const cur=+document.getElementById('sl-cur-cg').value;
+  const done=+document.getElementById('sl-sd').value;
+  const left=+document.getElementById('sl-sl').value;
+  const tgt=+document.getElementById('sl-tg').value;
+  const maxS=gpaScale;
+  const req=(tgt*(done+left)-cur*done)/left;
+  document.getElementById('req-sgpa').textContent=req.toFixed(2);
+  const vc=document.getElementById('tgt-vcard');
+  const vv=document.getElementById('tgt-vval');
+  const high = maxS===4 ? 3.7 : 9;
+  const mid  = maxS===4 ? 3.0 : 7;
+  if(req>maxS){vc.className='res-card rc-r';vv.textContent='🚨 Not Achievable';}
+  else if(req>=high){vc.className='res-card rc-a';vv.textContent='🔥 Very Challenging';}
+  else if(req>=mid){vc.className='res-card rc-c';vv.textContent='💪 Achievable';}
+  else{vc.className='res-card rc-g';vv.textContent='✅ Comfortably Doable';}
+  document.getElementById('tgt-out').classList.remove('hidden');
+}
+
+// ════════ BACKLOG ════════
+let blC=0;
+function addBlRow(){
+  blC++;
+  const d=document.createElement('div'); d.className='bl-row';
+  d.innerHTML=`<input type="text" placeholder="Subject/Topic"/><input type="number" placeholder="Chapters" min="1"/><input type="number" placeholder="Hrs/ch" min="0.5" step="0.5" value="1"/><button class="del-btn" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('bl-list').appendChild(d);
+}
+function calcBacklog(){
+  const ed=document.getElementById('exam-date').value;
+  const sh=+document.getElementById('sl-sh').value;
+  const rows=document.querySelectorAll('#bl-list .bl-row');
+  if(!rows.length){alert('Add subjects!');return;}
+  const today=new Date(); today.setHours(0,0,0,0);
+  const exam=ed?new Date(ed):null;
+  const dl=exam?Math.max(1,Math.ceil((exam-today)/864e5)):null;
+  let items=[],tot=0;
+  rows.forEach(r=>{
+    const i=r.querySelectorAll('input');
+    const nm=i[0].value||'Subject', ch=+i[1].value||1, hpc=+i[2].value||1, hrs=ch*hpc;
+    tot+=hrs; items.push({nm,ch,hpc,hrs});
+  });
+  const dn=Math.ceil(tot/sh);
+  let html=`<div class="res-grid" style="margin-bottom:16px">
+    <div class="res-card rc-c"><div class="res-label">Total Hours</div><div class="res-val">${tot.toFixed(1)}</div><div class="res-sub">Across all subjects</div></div>
+    <div class="res-card ${dl&&dl<dn?'rc-r':'rc-g'}"><div class="res-label">Days Needed</div><div class="res-val">${dn}</div><div class="res-sub">@ ${sh}h/day</div></div>
+    ${dl?`<div class="res-card ${dl<dn?'rc-r':'rc-a'}"><div class="res-label">Days Until Exam</div><div class="res-val">${dl}</div><div class="res-sub">${dl<dn?'⚠️ Tight!':'✅ OK'}</div></div>`:''}
+  </div>`;
+  items.forEach(it=>{
+    const da=dl?(it.hrs/tot*dl).toFixed(1):(it.hrs/sh).toFixed(1);
+    html+=`<div class="res-row"><span style="font-weight:600;color:var(--text)">${it.nm}</span><span style="color:var(--c)">${it.ch} ch</span><span style="color:var(--amber)">${it.hrs}h</span><span style="color:var(--green)">${da} days</span><span class="chip chip-g">${(it.hrs/it.ch).toFixed(1)}h/ch</span></div>`;
+  });
+  if(dl&&dl<dn) html+=`<div class="verdict dead" style="margin-top:12px"><span class="vi">🚨</span><div>You need <b>${dn} days</b> but only have <b>${dl}</b>. Study <b>${(tot/dl).toFixed(1)}h/day</b> to finish.</div></div>`;
+  else if(dl) html+=`<div class="verdict safe" style="margin-top:12px"><span class="vi">✅</span><div>On track! ${sh}h/day finishes everything with <b>${dl-dn} days</b> spare.</div></div>`;
+  document.getElementById('bl-body').innerHTML=html;
+  document.getElementById('bl-out').classList.remove('hidden');
+  toast('📅','Study plan generated!');
+}
+
+function calcPomo(){
+  const hrs=+document.getElementById('sl-ph').value||3;
+  const focus=+document.getElementById('sl-pf').value||25;
+  const brk=+document.getElementById('sl-pb').value||5;
+  const n=+document.getElementById('sl-pn').value||4;
+  const lng=15, total=hrs*60;
+  const cycle=n*focus+(n-1)*brk+lng;
+  const full=Math.floor(total/cycle);
+  const rem=total-full*cycle;
+  const extra=Math.floor(rem/(focus+brk));
+  const tp=full*n+extra;
+  document.getElementById('pomo-cards').innerHTML=`
+    <div class="res-card rc-c"><div class="res-label">Pomodoros</div><div class="res-val">${tp}</div><div class="res-sub">Sessions total</div></div>
+    <div class="res-card rc-g"><div class="res-label">Focus Time</div><div class="res-val">${tp*focus}m</div><div class="res-sub">${(tp*focus/60).toFixed(1)} hours</div></div>
+    <div class="res-card rc-v"><div class="res-label">Full Cycles</div><div class="res-val">${full}</div><div class="res-sub">${n} pomos per cycle</div></div>
+  `;
+  let sched='📅 <b style="color:var(--c)">Session Flow:</b><br><br>',pn=0;
+  for(let c2=0;c2<full+1;c2++){
+    const pt=c2<full?n:extra; if(!pt) break;
+    for(let p=0;p<pt;p++){
+      pn++;
+      sched+=`🍅 <b style="color:var(--amber)">Pomodoro ${pn}</b> — ${focus}min focus`;
+      if(p<pt-1) sched+=` → ☕ <span style="color:var(--muted)">${brk}min break</span><br>`;
+      else if(c2<full&&pt===n) sched+=` → 🛋️ <span style="color:var(--violet)">${lng}min long break</span><br>`;
+      else sched+=`<br>`;
+    }
+  }
+  document.getElementById('pomo-sched').innerHTML=sched;
+  document.getElementById('pomo-out').classList.remove('hidden');
+  toast('🍅','Pomodoro plan ready!');
+}
+
+// ════════ TIPS ════════
+const tips=[
+  {i:'📐',t:'The 75% Rule',b:'Skip 1 in 4 classes safely. Track weekly — small missed classes snowball into detention risk.'},
+  {i:'⏰',t:'Spaced Repetition',b:'Review new material after 1 day → 3 days → 7 days → 21 days. Retention skyrockets.'},
+  {i:'🎯',t:'Pareto 80/20',b:'80% of exam marks come from 20% of topics. Identify high-weight chapters and hit those first.'},
+  {i:'🧠',t:'Active Recall',b:'Close notes and write everything from memory. 3× more effective than re-reading pages.'},
+  {i:'📱',t:'Feynman Technique',b:'Explain it like you\'re teaching a 10-year-old. Gaps in your explanation = gaps in your learning.'},
+  {i:'💤',t:'Sleep = Memory',b:'7-8h sleep consolidates memory permanently. All-nighters before exams are counterproductive.'},
+  {i:'🔄',t:'Interleaved Study',b:'Switch between subjects during sessions. Feels harder but produces 40% deeper retention.'},
+  {i:'🏃',t:'Exercise Boost',b:'20 min aerobic exercise increases BDNF, improving memory capacity by up to 30%.'},
+  {i:'📝',t:'Cornell Notes',b:'Keywords left, notes right, summary at bottom. Best 10-minute pre-exam review system.'},
+  {i:'📊',t:'Internal Buffer',b:'With 30% internals: scoring 25/30 means you only need 35/70 externally to clear 60%.'},
+  {i:'🕐',t:'2-Minute Rule',b:'If a task takes under 2 minutes, do it immediately. For bigger tasks, commit to starting for 2 min.'},
+  {i:'🎧',t:'Brown Noise',b:'70dB background noise (rain/brown noise) significantly improves focus and creative thinking.'},
+];
+document.getElementById('tips-grid').innerHTML=tips.map(t=>`<div class="tip tilt-card"><div class="tip-ico">${t.i}</div><div class="tip-t">${t.t}</div><div class="tip-txt">${t.b}</div></div>`).join('');
+
+// ════════ CONVERTERS ════════
+function liveConv(){
+  const cg=+document.getElementById('conv-cgpa-sl').value;
+  const pc=+document.getElementById('conv-pct-sl').value;
+  const hr=+document.getElementById('conv-hrs-sl').value;
+  document.getElementById('conv-cgpa-out').textContent=`CGPA ${cg.toFixed(1)} → ${(cg*10).toFixed(1)}%`;
+  document.getElementById('conv-pct-out').textContent=`${pc.toFixed(1)}% → CGPA ${(pc/10).toFixed(2)}`;
+  document.getElementById('conv-hrs-out').textContent=`${hr}h → ~${Math.floor(hr*60/30)} pomodoros (30m blocks)`;
+}
+liveConv();
+
+// ════════ INIT ════════
+addSubRow(); addSubRow(); addSubRow();
+addGpaRow(); addGpaRow(); addGpaRow();
+addCgpaSem(); addCgpaSem(); addCgpaSem();
+addBlRow(); addBlRow();
+const d=new Date(); d.setDate(d.getDate()+30);
+document.getElementById('exam-date').value=d.toISOString().split('T')[0];
+
+// Trigger initial slider labels
+['minAtt','weeks','hpw','attended','weeksLeft'].forEach(id=>{
+  const sl=document.getElementById('sl-'+id);
+  if(sl) updLbl(id, sl.value, {'minAtt':'%','weeks':' wk','hpw':' h','attended':' h','weeksLeft':' wk'}[id]);
+});
+</script>
+</body>
+</html>
